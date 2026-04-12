@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-4 pb-5 position-relative" style="z-index: 1;">
+    <header class="mb-4">
+        <p class="eyebrow mb-2">Your workspace</p>
+        <h1 class="h3 fw-bold mb-1" style="font-family: var(--font-display);">Dashboard</h1>
+        <p class="text-secondary mb-0">Default profile for the predictor and your saved prediction runs.</p>
+    </header>
+
+    <div class="row g-4 align-items-start">
+        <div class="col-lg-5">
+            <div class="glass-card">
+                <h2 class="h6 text-uppercase letter-spacing text-secondary mb-3">Default profile</h2>
+                <p class="small text-secondary mb-3">We pre-fill the predictor with these values when you are signed in. Update anytime.</p>
+                <form id="prefsForm" class="dashboard-prefs">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium" for="dp_percentage">Diploma percentage</label>
+                        <input type="number" class="form-control form-control-lg" id="dp_percentage" name="percentage" step="0.1" min="50" max="100" value="{{ prefs.percentage if prefs else '' }}" placeholder="e.g. 82.5">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium" for="dp_caste">Category</label>
+                        <select class="form-select form-select-lg" id="dp_caste" name="caste">
+                            <option value="">Choose category</option>
+                            <option value="OPEN" {% if prefs and prefs.caste == 'OPEN' %}selected{% endif %}>OPEN / General</option>
+                            <option value="OBC" {% if prefs and prefs.caste == 'OBC' %}selected{% endif %}>OBC</option>
+                            <option value="SC" {% if prefs and prefs.caste == 'SC' %}selected{% endif %}>SC</option>
+                            <option value="ST" {% if prefs and prefs.caste == 'ST' %}selected{% endif %}>ST</option>
+                            <option value="VJNT" {% if prefs and prefs.caste == 'VJNT' %}selected{% endif %}>VJNT</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium" for="dp_branch">Preferred branch</label>
+                        <select class="form-select form-select-lg" id="dp_branch" name="branch">
+                            <option value="">Choose branch</option>
+                            <option value="CS" {% if prefs and prefs.branch == 'CS' %}selected{% endif %}>Computer Science (CS)</option>
+                            <option value="IT" {% if prefs and prefs.branch == 'IT' %}selected{% endif %}>Information Technology (IT)</option>
+                            <option value="EXTC" {% if prefs and prefs.branch == 'EXTC' %}selected{% endif %}>Electronics &amp; Telecom (EXTC)</option>
+                            <option value="ME" {% if prefs and prefs.branch == 'ME' %}selected{% endif %}>Mechanical (ME)</option>
+                            <option value="CIVIL" {% if prefs and prefs.branch == 'CIVIL' %}selected{% endif %}>Civil (CIVIL)</option>
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium" for="dp_gender">Gender</label>
+                            <select class="form-select form-select-lg" id="dp_gender" name="gender">
+                                <option value="M" {% if not prefs or prefs.gender == 'M' or not prefs.gender %}selected{% endif %}>Male</option>
+                                <option value="F" {% if prefs and prefs.gender == 'F' %}selected{% endif %}>Female</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium" for="dp_quota">Quota</label>
+                            <select class="form-select form-select-lg" id="dp_quota" name="quota">
+                                <option value="MS" {% if not prefs or prefs.quota == 'MS' or not prefs.quota %}selected{% endif %}>Maharashtra State (MS)</option>
+                                <option value="AI" {% if prefs and prefs.quota == 'AI' %}selected{% endif %}>All India (AI)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-predict w-100 mt-4" id="prefsSaveBtn">Save default profile</button>
+                    <p class="small text-secondary mt-2 mb-0" id="prefsStatus" aria-live="polite"></p>
+                </form>
+                {% if prefs and prefs.updated_at %}
+                <p class="small text-secondary mt-3 mb-0">Last updated: {{ prefs.updated_at[:19] }} UTC</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="glass-card">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <h2 class="h6 text-uppercase letter-spacing text-secondary mb-0">Saved prediction runs</h2>
+                    <a class="btn btn-nav-outline btn-sm" href="{{ url_for('predictor') }}">New prediction</a>
+                </div>
+                {% if not history %}
+                <p class="text-secondary mb-0">No saved runs yet. Open the predictor, run a shortlist, then use <strong>Save to history</strong> on the results.</p>
+                {% else %}
+                <div class="accordion dashboard-acc" id="historyAccordion">
+                    {% for item in history %}
+                    <div class="accordion-item dashboard-acc__item">
+                        <h3 class="accordion-header">
+                            <button class="accordion-button collapsed dashboard-acc__btn" type="button" data-bs-toggle="collapse" data-bs-target="#run-{{ item.id }}" aria-expanded="false" aria-controls="run-{{ item.id }}">
+                                <span class="me-2 text-secondary small text-nowrap">{{ item.created_at[:19] }}</span>
+                                <span class="text-truncate">{{ item.top_college or 'Prediction run' }}</span>
+                            </button>
+                        </h3>
+                        <div id="run-{{ item.id }}" class="accordion-collapse collapse" data-bs-parent="#historyAccordion">
+                            <div class="accordion-body">
+                                <p class="small text-secondary mb-2">
+                                    {{ item.profile.get('percentage', '—') }}% ·
+                                    {{ item.profile.get('caste_label') or item.profile.get('caste', '—') }} ·
+                                    {{ item.profile.get('branch_label') or item.profile.get('branch', '—') }}
+                                </p>
+                                <ol class="dashboard-rec-list mb-3">
+                                    {% for rec in item.recommendations[:10] %}
+                                    <li><strong>{{ rec.college }}</strong> — {{ rec.probability }}% match</li>
+                                    {% endfor %}
+                                </ol>
+                                <button type="button" class="btn btn-sm btn-outline-danger history-delete" data-run-id="{{ item.id }}">Delete this run</button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toastRoot" class="toast-root" aria-live="polite"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endblock %}
