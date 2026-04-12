@@ -1,6 +1,32 @@
 let lastRecommendations = null;
 let lastProfile = null;
 
+const isLoggedIn = typeof window.__PREDICTOR_AUTH__ !== 'undefined' && window.__PREDICTOR_AUTH__ === true;
+
+function applyDefaultProfileFromServer() {
+    const el = document.getElementById('defaultProfileJson');
+    if (!el) return;
+    let data;
+    try {
+        data = JSON.parse(el.textContent);
+    } catch {
+        return;
+    }
+    if (data == null || typeof data !== 'object') return;
+    if (data.percentage != null && document.getElementById('percentage')) {
+        const p = Number(data.percentage);
+        if (Number.isFinite(p)) {
+            document.getElementById('percentage').value = p;
+            const r = document.getElementById('percentageRange');
+            if (r) r.value = String(Math.min(100, Math.max(50, p)));
+        }
+    }
+    if (data.caste) document.getElementById('caste').value = data.caste;
+    if (data.branch) document.getElementById('branch').value = data.branch;
+    if (data.gender) document.getElementById('gender').value = data.gender;
+    if (data.quota) document.getElementById('quota').value = data.quota;
+}
+
 const predictBtn = document.getElementById('predictBtn');
 const predictBtnText = predictBtn.querySelector('.btn-predict__text');
 const predictSpinner = predictBtn.querySelector('.btn-predict__spinner');
@@ -112,6 +138,7 @@ percentageInput.addEventListener('input', syncRangeFromInput);
     document.getElementById(id).addEventListener('change', updateLivePreview);
 });
 
+applyDefaultProfileFromServer();
 syncPctFromRange();
 setSteps(1);
 
@@ -171,6 +198,22 @@ predictBtn.addEventListener('click', async function () {
         displayResults(data.recommendations);
         setSteps(3);
         showToast('Here are your top 10 matches.');
+
+        const remember = document.getElementById('rememberProfile');
+        if (isLoggedIn && remember && remember.checked) {
+            const p = parseFloat(percentageInput.value);
+            fetch('/api/preferences', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    percentage: Number.isFinite(p) ? p : null,
+                    caste: document.getElementById('caste').value,
+                    branch: document.getElementById('branch').value,
+                    gender: document.getElementById('gender').value,
+                    quota: document.getElementById('quota').value,
+                }),
+            }).catch(() => {});
+        }
     } catch (err) {
         console.error(err);
         showToast('Network error. Check the server.', true);
@@ -208,7 +251,42 @@ function displayResults(recommendations) {
     if (exportBtn) {
         exportBtn.onclick = exportToPDF;
     }
+    const saveBtn = document.getElementById('saveHistoryBtn');
+    if (saveBtn) {
+        saveBtn.onclick = saveRunToHistory;
+        saveBtn.disabled = false;
+    }
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function saveRunToHistory() {
+    if (!isLoggedIn || !lastRecommendations || !lastRecommendations.length) {
+        showToast('Nothing to save.', true);
+        return;
+    }
+    const saveBtn = document.getElementById('saveHistoryBtn');
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+        const res = await fetch('/api/save_prediction', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                profile: lastProfile || getProfileForExport(),
+                recommendations: lastRecommendations,
+            }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            showToast(data.error || 'Could not save. Try signing in again.', true);
+            return;
+        }
+        showToast('Saved to your dashboard history.');
+    } catch (e) {
+        console.error(e);
+        showToast('Network error.', true);
+    } finally {
+        if (saveBtn) saveBtn.disabled = false;
+    }
 }
 
 function escapeHtml(text) {
