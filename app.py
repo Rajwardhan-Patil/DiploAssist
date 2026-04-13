@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import secrets
@@ -7,6 +6,7 @@ from datetime import datetime, timezone
 from functools import wraps
 
 import numpy as np
+import pandas as pd
 from flask import (
     Flask,
     Response,
@@ -74,6 +74,49 @@ except Exception as e:
     print(f"Error loading model/encoders: {e}")
     model = None
     le_college = le_caste = le_branch = le_gender = le_quota = None
+
+college_stats = None
+college_segment_stats = {}
+try:
+    _stats_df = load(os.path.join(BASE_DIR, 'huge_colleges_data.pkl'))
+    if not isinstance(_stats_df, pd.DataFrame):
+        _stats_df = pd.DataFrame(_stats_df)
+    required_cols = {'college_name', 'cutoff_percentage', 'caste', 'branch', 'gender', 'quota'}
+    if required_cols.issubset(set(_stats_df.columns)):
+        for c in ('caste', 'branch', 'gender', 'quota', 'college_name'):
+            _stats_df[c] = _stats_df[c].astype(str).str.strip().str.upper()
+        college_stats = (
+            _stats_df.groupby('college_name')['cutoff_percentage']
+            .agg(['mean', 'std', 'min', 'max', 'count'])
+            .to_dict('index')
+        )
+        grp = (
+            _stats_df.groupby(['college_name', 'caste', 'branch', 'gender', 'quota'])[
+                'cutoff_percentage'
+            ]
+            .agg(['mean', 'std', 'min', 'max', 'count'])
+            .reset_index()
+        )
+        for _, row in grp.iterrows():
+            k = (
+                row['college_name'],
+                row['caste'],
+                row['branch'],
+                row['gender'],
+                row['quota'],
+            )
+            college_segment_stats[k] = {
+                'mean': float(row['mean']),
+                'std': float(row['std']) if pd.notna(row['std']) else np.nan,
+                'min': float(row['min']),
+                'max': float(row['max']),
+                'count': int(row['count']),
+            }
+        print('OK: Loaded cutoff stats for realism scoring.')
+    else:
+        print('Warning: huge_colleges_data.pkl missing required columns, using raw model only.')
+except Exception as e:
+    print(f'Warning: Could not load cutoff stats ({e}). Using raw model only.')
 
 
 def _utc_now_iso() -> str:
@@ -154,20 +197,6 @@ def init_db():
             )
             """
         )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS prediction_runs (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                profile_json TEXT NOT NULL,
-                recommendations_json TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            )
-            """
-        )
-        cur.execute(
-            'CREATE INDEX IF NOT EXISTS idx_runs_user ON prediction_runs (user_id, created_at DESC)'
-        )
         conn.commit()
         conn.close()
     else:
@@ -192,15 +221,6 @@ def init_db():
                 updated_at TEXT NOT NULL,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
-            CREATE TABLE IF NOT EXISTS prediction_runs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                profile_json TEXT NOT NULL,
-                recommendations_json TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            );
-            CREATE INDEX IF NOT EXISTS idx_runs_user ON prediction_runs (user_id, created_at DESC);
             """
         )
         conn.commit()
@@ -225,7 +245,7 @@ def get_current_user():
 
 @app.context_processor
 def inject_auth():
-    return {'current_user': get_current_user()}
+    return {'current_user': get_current_user(), 'current_year': datetime.now().year}
 
 
 def login_required_page(f):
@@ -273,6 +293,7 @@ def landing():
 
 
 @app.route('/predictor')
+@login_required_page
 def predictor():
     default_profile = None
     user = get_current_user()
@@ -381,37 +402,9 @@ def dashboard():
         (uid,),
     )
     prefs = cur_p.fetchone()
-    cur_r = db_execute(
-        """
-        SELECT id, profile_json, recommendations_json, created_at
-        FROM prediction_runs
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-        LIMIT 40
-        """,
-        (uid,),
-    )
-    runs = cur_r.fetchall()
-    history = []
-    for r in runs:
-        try:
-            profile = json.loads(r['profile_json'])
-            recs = json.loads(r['recommendations_json'])
-        except (json.JSONDecodeError, TypeError):
-            continue
-        history.append(
-            {
-                'id': r['id'],
-                'created_at': r['created_at'],
-                'profile': profile,
-                'recommendations': recs,
-                'top_college': recs[0]['college'] if recs else None,
-            }
-        )
     return render_template(
         'dashboard.html',
         prefs=_row_dict(prefs),
-        history=history,
     )
 
 
@@ -421,23 +414,6 @@ def api_me():
     if not u:
         return jsonify({'user': None})
     return jsonify({'user': {'id': u['id'], 'email': u['email'], 'full_name': u['full_name']}})
-
-
-@app.post('/api/save_prediction')
-@login_required_api
-def api_save_prediction():
-    data = request.get_json(silent=True) or {}
-    profile = data.get('profile')
-    recs = data.get('recommendations')
-    if not isinstance(profile, dict) or not isinstance(recs, list) or not recs:
-        return jsonify({'error': 'Missing profile or recommendations.'}), 400
-    uid = session['user_id']
-    db_execute(
-        'INSERT INTO prediction_runs (user_id, profile_json, recommendations_json, created_at) VALUES (?, ?, ?, ?)',
-        (uid, json.dumps(profile), json.dumps(recs), _utc_now_iso()),
-        commit=True,
-    )
-    return jsonify({'ok': True})
 
 
 @app.post('/api/preferences')
@@ -475,19 +451,8 @@ def api_preferences():
     return jsonify({'ok': True})
 
 
-@app.delete('/api/history/<int:run_id>')
-@login_required_api
-def api_delete_history(run_id):
-    uid = session['user_id']
-    cur = db_execute(
-        'DELETE FROM prediction_runs WHERE id = ? AND user_id = ?', (run_id, uid), commit=True
-    )
-    if cur.rowcount == 0:
-        return jsonify({'error': 'Not found.'}), 404
-    return jsonify({'ok': True})
-
-
 @app.route('/predict', methods=['POST'])
+@login_required_api
 def predict():
     if model is None:
         return jsonify({'error': 'Model files not loaded on server.'}), 500
@@ -521,21 +486,36 @@ def predict():
         # 4. Get probabilities
         probabilities = model.predict_proba(X_input)[0]
 
-        # 5. Extract Top 10
-        top_indices = np.argsort(probabilities)[-10:][::-1]
-        recommendations = []
-
-        # Column idx of predict_proba matches model.classes_[idx] (encoded college id), not raw index order
+        # 5. Apply realism factors from historical cutoff distributions.
         classes = model.classes_
+        adjusted = np.zeros_like(probabilities, dtype=float)
+        for idx, p in enumerate(probabilities):
+            label = int(classes[idx])
+            college_name = le_college.inverse_transform([label])[0]
+            factor = _realism_factor(college_name, percentage, caste, branch, gender, quota)
+            adjusted[idx] = float(p) * factor
+        total_adj = float(adjusted.sum())
+        if total_adj > 0:
+            adjusted = adjusted / total_adj
+        else:
+            adjusted = probabilities
+
+        # 6. Extract top 10 and normalize within shortlist for practical ranking.
+        top_indices = np.argsort(adjusted)[-10:][::-1]
+        top_total = float(adjusted[top_indices].sum())
+        recommendations = []
         for idx in top_indices:
             label = int(classes[idx])
             college_name = le_college.inverse_transform([label])[0]
-            prob = float(probabilities[idx])
-            # Four decimals so small top-10 values are not shown as 0.00%
-            recommendations.append({
-                'college': college_name,
-                'probability': round(prob * 100, 4)
-            })
+            score = float(adjusted[idx])
+            shortlist_pct = (score / top_total * 100.0) if top_total > 0 else 0.0
+            shortlist_pct = float(np.clip(shortlist_pct, 0.0, 99.0))
+            recommendations.append(
+                {
+                    'college': college_name,
+                    'probability': round(shortlist_pct, 2),
+                }
+            )
 
         return jsonify({'recommendations': recommendations})
 
@@ -552,6 +532,34 @@ def _pdf_safe(text: str) -> str:
     return str(text).encode('latin-1', 'replace').decode('latin-1')
 
 
+def _realism_factor(
+    college_name: str, percentage: float, caste: str, branch: str, gender: str, quota: str
+) -> float:
+    if college_stats is None:
+        return 1.0
+    seg_key = (college_name.upper(), caste, branch, gender, quota)
+    seg = college_segment_stats.get(seg_key)
+    base = college_stats.get(college_name.upper())
+    stats = seg if seg and seg.get('count', 0) >= 5 else base
+    if not stats:
+        return 1.0
+    mu = float(stats.get('mean', percentage))
+    sigma = float(stats.get('std', np.nan))
+    sigma = sigma if np.isfinite(sigma) and sigma > 1.5 else 3.0
+    min_cut = float(stats.get('min', mu - (2 * sigma)))
+    max_cut = float(stats.get('max', mu + (2 * sigma)))
+    # Smoothly penalize colleges with much higher expected cutoff than user percentage.
+    z = (percentage - mu) / sigma
+    factor = 0.2 + (1.0 / (1.0 + np.exp(-z)))
+    if percentage < (min_cut - 3.0):
+        factor *= 0.35
+    elif percentage < (min_cut - 1.5):
+        factor *= 0.65
+    elif percentage > (max_cut + 4.0):
+        factor *= 1.05
+    return float(np.clip(factor, 0.05, 1.25))
+
+
 def _build_recommendations_pdf(profile: dict, recommendations: list) -> bytes:
     """Server-side PDF (no browser CDN). fpdf2 core fonts = Latin-1."""
     pdf = FPDF()
@@ -559,6 +567,12 @@ def _build_recommendations_pdf(profile: dict, recommendations: list) -> bytes:
     pdf.set_margins(14, 14, 14)
     pdf.add_page()
     usable_w = pdf.w - pdf.l_margin - pdf.r_margin
+    # Simple text logo on top-right corner
+    pdf.set_font('helvetica', 'B', 11)
+    pdf.set_text_color(61, 139, 253)
+    pdf.set_xy(pdf.w - pdf.r_margin - 36, 10)
+    pdf.cell(36, 6, _pdf_safe('DiploAssist'), align='R')
+    pdf.set_text_color(0, 0, 0)
     pdf.set_font('helvetica', 'B', 16)
     pdf.set_x(pdf.l_margin)
     pdf.multi_cell(usable_w, 8, _pdf_safe('DSE admission predictor - recommendations'))
@@ -596,7 +610,6 @@ def _build_recommendations_pdf(profile: dict, recommendations: list) -> bytes:
         5,
         _pdf_safe(
             'Disclaimer: Scores come from a machine learning model trained on synthetic data. '
-            'They are not official CAP round cutoffs or admission guarantees.'
         ),
     )
     return bytes(pdf.output())
