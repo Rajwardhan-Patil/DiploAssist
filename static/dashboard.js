@@ -47,29 +47,3 @@ document.getElementById('prefsForm')?.addEventListener('submit', async (e) => {
     }
 });
 
-document.querySelectorAll('.history-delete').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-run-id');
-        if (!id || !confirm('Delete this saved run?')) return;
-        btn.disabled = true;
-        try {
-            const res = await fetch(`/api/history/${encodeURIComponent(id)}`, { method: 'DELETE' });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                showToast(data.error || 'Could not delete.', true);
-                btn.disabled = false;
-                return;
-            }
-            const item = btn.closest('.accordion-item');
-            if (item) item.remove();
-            showToast('Run removed.');
-            if (!document.querySelector('.dashboard-acc__item')) {
-                window.location.reload();
-            }
-        } catch (err) {
-            console.error(err);
-            showToast('Network error.', true);
-            btn.disabled = false;
-        }
-    });
-});

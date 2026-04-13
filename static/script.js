@@ -251,42 +251,7 @@ function displayResults(recommendations) {
     if (exportBtn) {
         exportBtn.onclick = exportToPDF;
     }
-    const saveBtn = document.getElementById('saveHistoryBtn');
-    if (saveBtn) {
-        saveBtn.onclick = saveRunToHistory;
-        saveBtn.disabled = false;
-    }
     resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-async function saveRunToHistory() {
-    if (!isLoggedIn || !lastRecommendations || !lastRecommendations.length) {
-        showToast('Nothing to save.', true);
-        return;
-    }
-    const saveBtn = document.getElementById('saveHistoryBtn');
-    if (saveBtn) saveBtn.disabled = true;
-    try {
-        const res = await fetch('/api/save_prediction', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                profile: lastProfile || getProfileForExport(),
-                recommendations: lastRecommendations,
-            }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            showToast(data.error || 'Could not save. Try signing in again.', true);
-            return;
-        }
-        showToast('Saved to your dashboard history.');
-    } catch (e) {
-        console.error(e);
-        showToast('Network error.', true);
-    } finally {
-        if (saveBtn) saveBtn.disabled = false;
-    }
 }
 
 function escapeHtml(text) {

@@ -493,6 +493,15 @@ body {
     white-space: nowrap;
 }
 
+.site-footer {
+    position: relative;
+    z-index: 2;
+    border-top: 1px solid var(--glass-border);
+    background: rgba(12, 18, 34, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
 /* —— Flash / alerts (dark-friendly) —— */
 .alert {
     border-radius: 12px;
