@@ -20,11 +20,17 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-medium" for="password">Password</label>
-                        <input type="password" class="form-control form-control-lg" id="password" name="password" required autocomplete="new-password" minlength="8" placeholder="At least 8 characters">
+                        <div class="input-group input-group-lg">
+                            <input type="password" class="form-control form-control-lg" id="password" name="password" required autocomplete="new-password" minlength="8" placeholder="At least 8 characters">
+                            <button type="button" class="btn btn-outline-secondary password-toggle" data-target="password" aria-label="Show password">Show</button>
+                        </div>
                     </div>
                     <div class="mb-4">
                         <label class="form-label fw-medium" for="confirm_password">Confirm password</label>
-                        <input type="password" class="form-control form-control-lg" id="confirm_password" name="confirm_password" required autocomplete="new-password" minlength="8" placeholder="Repeat password">
+                        <div class="input-group input-group-lg">
+                            <input type="password" class="form-control form-control-lg" id="confirm_password" name="confirm_password" required autocomplete="new-password" minlength="8" placeholder="Repeat password">
+                            <button type="button" class="btn btn-outline-secondary password-toggle" data-target="confirm_password" aria-label="Show password">Show</button>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-predict btn-lg w-100">Create account</button>
                 </form>
@@ -35,4 +41,16 @@
         </div>
     </div>
 </div>
+<script>
+    document.querySelectorAll('.password-toggle').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const target = document.getElementById(btn.dataset.target);
+            if (!target) return;
+            const isPassword = target.type === 'password';
+            target.type = isPassword ? 'text' : 'password';
+            btn.textContent = isPassword ? 'Hide' : 'Show';
+            btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+        });
+    });
+</script>
 {% endblock %}

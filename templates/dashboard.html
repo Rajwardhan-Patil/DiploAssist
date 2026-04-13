@@ -6,11 +6,11 @@
     <header class="mb-4">
         <p class="eyebrow mb-2">Your workspace</p>
         <h1 class="h3 fw-bold mb-1" style="font-family: var(--font-display);">Dashboard</h1>
-        <p class="text-secondary mb-0">Default profile for the predictor and your saved prediction runs.</p>
+        <p class="text-secondary mb-0">Manage your default profile used in the predictor.</p>
     </header>
 
     <div class="row g-4 align-items-start">
-        <div class="col-lg-5">
+        <div class="col-lg-8 col-xl-6">
             <div class="glass-card">
                 <h2 class="h6 text-uppercase letter-spacing text-secondary mb-3">Default profile</h2>
                 <p class="small text-secondary mb-3">We pre-fill the predictor with these values when you are signed in. Update anytime.</p>
@@ -62,45 +62,6 @@
                 </form>
                 {% if prefs and prefs.updated_at %}
                 <p class="small text-secondary mt-3 mb-0">Last updated: {{ prefs.updated_at[:19] }} UTC</p>
-                {% endif %}
-            </div>
-        </div>
-        <div class="col-lg-7">
-            <div class="glass-card">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                    <h2 class="h6 text-uppercase letter-spacing text-secondary mb-0">Saved prediction runs</h2>
-                    <a class="btn btn-nav-outline btn-sm" href="{{ url_for('predictor') }}">New prediction</a>
-                </div>
-                {% if not history %}
-                <p class="text-secondary mb-0">No saved runs yet. Open the predictor, run a shortlist, then use <strong>Save to history</strong> on the results.</p>
-                {% else %}
-                <div class="accordion dashboard-acc" id="historyAccordion">
-                    {% for item in history %}
-                    <div class="accordion-item dashboard-acc__item">
-                        <h3 class="accordion-header">
-                            <button class="accordion-button collapsed dashboard-acc__btn" type="button" data-bs-toggle="collapse" data-bs-target="#run-{{ item.id }}" aria-expanded="false" aria-controls="run-{{ item.id }}">
-                                <span class="me-2 text-secondary small text-nowrap">{{ item.created_at[:19] }}</span>
-                                <span class="text-truncate">{{ item.top_college or 'Prediction run' }}</span>
-                            </button>
-                        </h3>
-                        <div id="run-{{ item.id }}" class="accordion-collapse collapse" data-bs-parent="#historyAccordion">
-                            <div class="accordion-body">
-                                <p class="small text-secondary mb-2">
-                                    {{ item.profile.get('percentage', '—') }}% ·
-                                    {{ item.profile.get('caste_label') or item.profile.get('caste', '—') }} ·
-                                    {{ item.profile.get('branch_label') or item.profile.get('branch', '—') }}
-                                </p>
-                                <ol class="dashboard-rec-list mb-3">
-                                    {% for rec in item.recommendations[:10] %}
-                                    <li><strong>{{ rec.college }}</strong> — {{ rec.probability }}% match</li>
-                                    {% endfor %}
-                                </ol>
-                                <button type="button" class="btn btn-sm btn-outline-danger history-delete" data-run-id="{{ item.id }}">Delete this run</button>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
                 {% endif %}
             </div>
         </div>

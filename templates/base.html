@@ -50,6 +50,12 @@
     {% endwith %}
 
     {% block content %}{% endblock %}
+    <footer class="site-footer mt-5">
+        <div class="container py-4 d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+            <p class="mb-0 small text-secondary">Copyright &copy; {{ current_year }} DiploAssist. All rights reserved.</p>
+            <p class="mb-0 small text-secondary">Created by Nageshwar Patil and Rajwardhan Patil.</p>
+        </div>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     {% block scripts %}{% endblock %}
