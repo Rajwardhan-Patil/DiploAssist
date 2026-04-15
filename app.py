@@ -500,20 +500,21 @@ def predict():
         else:
             adjusted = probabilities
 
-        # 6. Extract top 10 and normalize within shortlist for practical ranking.
+        # 6. Smooth very peaky distributions to avoid single-college dominance.
+        adjusted = _flatten_dominance(adjusted)
+
+        # 7. Extract top 10 and report global calibrated probability percentages.
         top_indices = np.argsort(adjusted)[-10:][::-1]
-        top_total = float(adjusted[top_indices].sum())
         recommendations = []
         for idx in top_indices:
             label = int(classes[idx])
             college_name = le_college.inverse_transform([label])[0]
             score = float(adjusted[idx])
-            shortlist_pct = (score / top_total * 100.0) if top_total > 0 else 0.0
-            shortlist_pct = float(np.clip(shortlist_pct, 0.0, 99.0))
+            calibrated_pct = float(np.clip(score * 100.0, 0.0, 100.0))
             recommendations.append(
                 {
                     'college': college_name,
-                    'probability': round(shortlist_pct, 2),
+                    'probability': round(calibrated_pct, 2),
                 }
             )
 
@@ -548,16 +549,44 @@ def _realism_factor(
     sigma = sigma if np.isfinite(sigma) and sigma > 1.5 else 3.0
     min_cut = float(stats.get('min', mu - (2 * sigma)))
     max_cut = float(stats.get('max', mu + (2 * sigma)))
-    # Smoothly penalize colleges with much higher expected cutoff than user percentage.
+    # Blend "admission likelihood" with "fit to expected cutoff band".
+    # This avoids always forcing the single highest-cutoff college to rank #1
+    # for every high-percentage student.
     z = (percentage - mu) / sigma
-    factor = 0.2 + (1.0 / (1.0 + np.exp(-z)))
+    chance_component = 0.2 + (1.0 / (1.0 + np.exp(-z)))
+    target = mu + (0.5 * sigma)
+    fit_component = np.exp(-(((percentage - target) ** 2) / (2.0 * (2.2 * sigma) ** 2)))
+    factor = (0.55 * chance_component) + (0.45 * fit_component)
     if percentage < (min_cut - 3.0):
         factor *= 0.35
     elif percentage < (min_cut - 1.5):
         factor *= 0.65
     elif percentage > (max_cut + 4.0):
-        factor *= 1.05
+        factor *= 0.92
     return float(np.clip(factor, 0.05, 1.25))
+
+
+def _flatten_dominance(probabilities: np.ndarray, top_cap: float = 0.35) -> np.ndarray:
+    """Limit excessive concentration in one class while preserving ranking signal."""
+    probs = np.array(probabilities, dtype=float, copy=True)
+    total = float(probs.sum())
+    if total <= 0.0:
+        return probs
+    probs /= total
+    top_idx = int(np.argmax(probs))
+    top_val = float(probs[top_idx])
+    if top_val <= top_cap:
+        return probs
+    excess = top_val - top_cap
+    probs[top_idx] = top_cap
+    other_mask = np.ones_like(probs, dtype=bool)
+    other_mask[top_idx] = False
+    other_total = float(probs[other_mask].sum())
+    if other_total <= 0.0:
+        return probs
+    probs[other_mask] += excess * (probs[other_mask] / other_total)
+    probs /= float(probs.sum())
+    return probs
 
 
 def _build_recommendations_pdf(profile: dict, recommendations: list) -> bytes:
