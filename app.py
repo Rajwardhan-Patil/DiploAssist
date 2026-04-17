@@ -16,6 +16,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     session,
     url_for,
 )
@@ -285,6 +286,16 @@ def _validate_signup(email: str, password: str, confirm: str, full_name: str) ->
     if full_name and len(full_name) > 120:
         errors.append('Name is too long.')
     return errors
+
+
+# Google Search Console HTML file verification must be at /{filename}.html (not /static/...).
+GOOGLE_SITE_VERIFICATION_HTML = 'google80324c58623d19a4.html'
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+
+
+@app.route('/' + GOOGLE_SITE_VERIFICATION_HTML)
+def google_site_verification():
+    return send_from_directory(STATIC_DIR, GOOGLE_SITE_VERIFICATION_HTML)
 
 
 @app.route('/')
