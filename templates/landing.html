@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block body_class %}page-landing{% endblock %}
+
+{% block content %}
+<main class="landing-main">
+    <section class="landing-hero text-center">
+        <div class="container position-relative" style="z-index: 1;">
+            <p class="eyebrow mb-2">Maharashtra DSE · Direct Second Year engineering</p>
+            <h1 class="landing-hero__title">Plan your cap rounds with a data-backed shortlist</h1>
+            <p class="landing-hero__lead mx-auto">
+                DiploAssist scores colleges from an ML model using your diploma percentage, category, branch, gender, and quota—then lets you export a PDF and, when you sign in, save runs to compare options over time.
+            </p>
+            <div class="d-flex flex-wrap justify-content-center gap-3 mt-4">
+                <a class="btn btn-landing-primary btn-lg px-4" href="{{ url_for('predictor') }}">Open predictor</a>
+                <a class="btn btn-landing-outline btn-lg px-4" href="{{ url_for('signup') }}">Create free account</a>
+            </div>
+            <p class="small text-secondary mt-4 mb-0">Guest users can run predictions anytime. Accounts add history, saved defaults, and a personal dashboard.</p>
+        </div>
+    </section>
+
+    <section class="container pb-5 position-relative" style="z-index: 1;">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="glass-card landing-feature h-100">
+                    <div class="landing-feature__icon" aria-hidden="true">01</div>
+                    <h2 class="h5 fw-semibold">Top 10 college matches</h2>
+                    <p class="text-secondary mb-0">Enter your profile once and get a ranked list with model confidence scores—useful for trimming choices before official CAP data.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="glass-card landing-feature h-100">
+                    <div class="landing-feature__icon" aria-hidden="true">02</div>
+                    <h2 class="h5 fw-semibold">PDF report</h2>
+                    <p class="text-secondary mb-0">Download a shareable summary of your profile and shortlist for discussions with family or counsellors.</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="glass-card landing-feature h-100">
+                    <div class="landing-feature__icon" aria-hidden="true">03</div>
+                    <h2 class="h5 fw-semibold">Signed-in benefits</h2>
+                    <p class="text-secondary mb-0">Save prediction runs, remember your default profile, and revisit past shortlists from your dashboard as your percentage or preferences change.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card landing-cta mt-5 text-center">
+            <h2 class="h4 fw-semibold mb-2">Ready to explore?</h2>
+            <p class="text-secondary mb-4 mx-auto" style="max-width: 36rem;">
+                Start as a guest, or create an account in under a minute to unlock saved history and default profile.
+            </p>
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+                <a class="btn btn-predict btn-lg" href="{{ url_for('predictor') }}">Try the predictor</a>
+                {% if not current_user %}
+                <a class="btn btn-landing-outline btn-lg" href="{{ url_for('signin') }}">Sign in</a>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock %}
