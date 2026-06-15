@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Python 3.11–3.14 supported; use wheels where available (avoid broken source builds on Windows).
 Flask>=3.0.3
 psycopg2-binary>=2.9.9
@@ -10,3 +11,17 @@ gunicorn>=22.0.0
 
 # Optional: only needed for parse_dsd.py (PDF extraction)
 # PyMuPDF>=1.24.10
+=======
+# Python 3.11–3.14 supported; use wheels where available (avoid broken source builds on Windows).
+Flask>=3.0.3
+psycopg2-binary>=2.9.9
+scikit-learn>=1.6.1
+pandas>=2.2.2
+joblib>=1.4.2
+numpy>=2.0.0
+fpdf2>=2.8.0
+gunicorn>=22.0.0
+
+# Optional: only needed for parse_dsd.py (PDF extraction)
+# PyMuPDF>=1.24.10
+>>>>>>> 9d8d72e274a1cb006ab020cb5aeb4faabc27fd48

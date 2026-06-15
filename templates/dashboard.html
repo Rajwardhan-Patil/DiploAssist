@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 
@@ -113,3 +114,81 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 {% endblock %}
+=======
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-4 pb-5 position-relative" style="z-index: 1;">
+    <header class="mb-4">
+        <p class="eyebrow mb-2">Your workspace</p>
+        <h1 class="h3 fw-bold mb-1" style="font-family: var(--font-display);">Dashboard</h1>
+        <p class="text-secondary mb-0">Manage your default profile used in the predictor.</p>
+    </header>
+
+    <div class="row g-4 align-items-start">
+        <div class="col-lg-8 col-xl-6">
+            <div class="glass-card">
+                <h2 class="h6 text-uppercase letter-spacing text-secondary mb-3">Default profile</h2>
+                <p class="small text-secondary mb-3">We pre-fill the predictor with these values when you are signed in. Update anytime.</p>
+                <form id="prefsForm" class="dashboard-prefs">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium" for="dp_percentage">Diploma percentage</label>
+                        <input type="number" class="form-control form-control-lg" id="dp_percentage" name="percentage" step="0.1" min="50" max="100" value="{{ prefs.percentage if prefs else '' }}" placeholder="e.g. 82.5">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium" for="dp_caste">Category</label>
+                        <select class="form-select form-select-lg" id="dp_caste" name="caste">
+                            <option value="">Choose category</option>
+                            <option value="OPEN" {% if prefs and prefs.caste == 'OPEN' %}selected{% endif %}>OPEN / General</option>
+                            <option value="OBC" {% if prefs and prefs.caste == 'OBC' %}selected{% endif %}>OBC</option>
+                            <option value="SC" {% if prefs and prefs.caste == 'SC' %}selected{% endif %}>SC</option>
+                            <option value="ST" {% if prefs and prefs.caste == 'ST' %}selected{% endif %}>ST</option>
+                            <option value="VJNT" {% if prefs and prefs.caste == 'VJNT' %}selected{% endif %}>VJNT</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium" for="dp_branch">Preferred branch</label>
+                        <select class="form-select form-select-lg" id="dp_branch" name="branch">
+                            <option value="">Choose branch</option>
+                            <option value="CS" {% if prefs and prefs.branch == 'CS' %}selected{% endif %}>Computer Science (CS)</option>
+                            <option value="IT" {% if prefs and prefs.branch == 'IT' %}selected{% endif %}>Information Technology (IT)</option>
+                            <option value="EXTC" {% if prefs and prefs.branch == 'EXTC' %}selected{% endif %}>Electronics &amp; Telecom (EXTC)</option>
+                            <option value="ME" {% if prefs and prefs.branch == 'ME' %}selected{% endif %}>Mechanical (ME)</option>
+                            <option value="CIVIL" {% if prefs and prefs.branch == 'CIVIL' %}selected{% endif %}>Civil (CIVIL)</option>
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium" for="dp_gender">Gender</label>
+                            <select class="form-select form-select-lg" id="dp_gender" name="gender">
+                                <option value="M" {% if not prefs or prefs.gender == 'M' or not prefs.gender %}selected{% endif %}>Male</option>
+                                <option value="F" {% if prefs and prefs.gender == 'F' %}selected{% endif %}>Female</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-medium" for="dp_quota">Quota</label>
+                            <select class="form-select form-select-lg" id="dp_quota" name="quota">
+                                <option value="MS" {% if not prefs or prefs.quota == 'MS' or not prefs.quota %}selected{% endif %}>Maharashtra State (MS)</option>
+                                <option value="AI" {% if prefs and prefs.quota == 'AI' %}selected{% endif %}>All India (AI)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-predict w-100 mt-4" id="prefsSaveBtn">Save default profile</button>
+                    <p class="small text-secondary mt-2 mb-0" id="prefsStatus" aria-live="polite"></p>
+                </form>
+                {% if prefs and prefs.updated_at %}
+                <p class="small text-secondary mt-3 mb-0">Last updated: {{ prefs.updated_at[:19] }} UTC</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toastRoot" class="toast-root" aria-live="polite"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endblock %}
+>>>>>>> 9d8d72e274a1cb006ab020cb5aeb4faabc27fd48
