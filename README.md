@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Diploma to Engineering DSE Admission Predictor
 
 ML-powered web app to predict engineering colleges for Direct Second Year admission based on diploma percentage.
